@@ -188,6 +188,7 @@ router.post('/removeKey', csrfCheck, sessionCheck, async (req, res) => {
  * Start creating a new passkey by serving registration options.
  */
 router.post('/registerRequest', csrfCheck, sessionCheck, async (req, res) => {
+  console.log(res);
   const { user } = res.locals;
   try {
     // Create `excludeCredentials` from a list of stored credentials.

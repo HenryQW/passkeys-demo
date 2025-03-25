@@ -20,19 +20,19 @@ export const $ = document.querySelector.bind(document);
  * Sends a POST request with payload. Throws when the response is not 200.
  * @param path The endpoint path.
  * @param payload The payload JSON object.
- * @returns 
+ * @returns
  */
-export async function post(path, payload = '') {
+export async function post(path, payload = "") {
   const headers = {
-    'X-Requested-With': 'XMLHttpRequest',
+    "X-Requested-With": "XMLHttpRequest",
   };
   if (payload && !(payload instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
     payload = JSON.stringify(payload);
   }
   const res = await fetch(path, {
-    method: 'POST',
-    credentials: 'same-origin',
+    method: "POST",
+    credentials: "same-origin",
     headers: headers,
     body: payload,
   });
@@ -45,35 +45,35 @@ export async function post(path, payload = '') {
     result.status = res.status;
     throw result;
   }
-};
+}
 
 /**
  * Indicate loading status using a material progress web component.
  */
 class Loading {
   constructor() {
-    this.progress = $('#progress');
+    this.progress = $("#progress");
   }
   start() {
-    this.progress.value = '';
-    const inputs = document.querySelectorAll('input');
+    this.progress.value = "";
+    const inputs = document.querySelectorAll("input");
     if (inputs) {
-      inputs.forEach(input => input.disabled = true);
+      inputs.forEach((input) => (input.disabled = true));
     }
   }
   stop() {
     this.progress.value = 0;
-    const inputs = document.querySelectorAll('input');
+    const inputs = document.querySelectorAll("input");
     if (inputs) {
-      inputs.forEach(input => input.disabled = false);
+      inputs.forEach((input) => (input.disabled = false));
     }
   }
 }
 
 export const loading = new Loading();
 const metadata = {
-  rpId: '',
-  userId: '',
+  rpId: "localhost",
+  userId: "test user",
 };
 
 /**
@@ -82,16 +82,28 @@ const metadata = {
  */
 export async function registerCredential() {
   // Fetch passkey creation options from the server.
-  const _options = await post('/auth/registerRequest');
+  const _options = await post(
+    "http://localhost:10086/auth/registrationRequest",
+    {
+      username: "test user",
+    }
+  );
 
+  // const _options = await post("/auth/registerRequest");
+
+  console.log(_options);
   // Base64URL decode some values
-  const options = PublicKeyCredential.parseCreationOptionsFromJSON(_options);
+  const options = PublicKeyCredential.parseCreationOptionsFromJSON(
+    _options.registration_options
+  );
+
+  console.log(options);
 
   // Use platform authenticator and discoverable credential
   options.authenticatorSelection = {
-    authenticatorAttachment: 'platform',
-    requireResidentKey: true
-  }
+    authenticatorAttachment: "platform",
+    requireResidentKey: true,
+  };
 
   // Invoke WebAuthn create
   const cred = await navigator.credentials.create({
@@ -102,7 +114,17 @@ export async function registerCredential() {
 
   // Send the result to the server and return the promise.
   try {
-    const result = await post('/auth/registerResponse', credential);
+    const result = await post(
+      "http://localhost:10086/auth/registrationResponse",
+      {
+        user_id: _options.user_id,
+        timezone: "1",
+        credential: credential,
+      }
+    );
+
+    // const result = await post("/auth/registerResponse", credential);
+    console.log(result);
     return result;
   } catch (e) {
     // Detect if the credential was not found.
@@ -112,11 +134,13 @@ export async function registerCredential() {
         rpId: options.rp.id,
         credentialId: credential.id,
       });
-      console.info('The passkey failed to register has been signaled to the password manager.');
+      console.info(
+        "The passkey failed to register has been signaled to the password manager."
+      );
     }
     throw e;
   }
-};
+}
 
 /**
  * Authenticate with a passkey.
@@ -125,7 +149,7 @@ export async function registerCredential() {
  */
 export async function authenticate(conditional = false) {
   // Fetch passkey request options from the server.
-  const _options = await post('/auth/signinRequest');
+  const _options = await post("/auth/signinRequest");
 
   const options = PublicKeyCredential.parseRequestOptionsFromJSON(_options);
 
@@ -133,7 +157,7 @@ export async function authenticate(conditional = false) {
   const cred = await navigator.credentials.get({
     publicKey: options,
     // Request a conditional UI
-    mediation: conditional ? 'conditional' : 'optional'
+    mediation: conditional ? "conditional" : "optional",
   });
 
   const credential = cred.toJSON();
@@ -147,15 +171,19 @@ export async function authenticate(conditional = false) {
       await PublicKeyCredential.signalUnknownCredential({
         rpId: options.rpId,
         credentialId: credential.id,
-      }).then(() => {
-        console.info('The passkey associated with the credential not found has been signaled to the password manager.');
-      }).catch(e => {
-        console.error(e.message);
-      });
+      })
+        .then(() => {
+          console.info(
+            "The passkey associated with the credential not found has been signaled to the password manager."
+          );
+        })
+        .catch((e) => {
+          console.error(e.message);
+        });
     }
     throw e;
   }
-};
+}
 
 /**
  * Request to update the namme of a passkey.
@@ -176,7 +204,7 @@ export async function updateCredential(credId, newName) {
  */
 export async function unregisterCredential(credId) {
   await post(`/auth/removeKey?credId=${encodeURIComponent(credId)}`);
-};
+}
 
 /**
  * Signal the list of credentials so the password manager can synchronize.
@@ -185,18 +213,22 @@ export async function unregisterCredential(credId) {
  * @returns a promise that resolve with undefined.
  */
 export async function getAllCredentials() {
-  const credentials = await post('/auth/getKeys');
+  const credentials = await post("/auth/getKeys");
   if (PublicKeyCredential.signalAllAcceptedCredentials) {
-    const credentialIds = credentials.map(cred => cred.id);
+    const credentialIds = credentials.map((cred) => cred.id);
     await PublicKeyCredential.signalAllAcceptedCredentials({
       rpId: metadata.rpId,
       userId: metadata.userId, // base64url encoded user ID
-      allAcceptedCredentialIds: credentialIds
-    }).then(() => {
-      console.info('Passkeys list have been signaled to the password manager.');
-    }).catch(e => {
-      console.error(e.message);
-    });
+      allAcceptedCredentialIds: credentialIds,
+    })
+      .then(() => {
+        console.info(
+          "Passkeys list have been signaled to the password manager."
+        );
+      })
+      .catch((e) => {
+        console.error(e.message);
+      });
   }
   return credentials;
 }
@@ -209,7 +241,12 @@ export async function getAllCredentials() {
  * @param { string } displayName The user's display name
  * @returns a promise that resolve with undefined.
  */
-export async function updateCurrentUserDetails(rpId, userId, name, displayName) {
+export async function updateCurrentUserDetails(
+  rpId,
+  userId,
+  name,
+  displayName
+) {
   // This is an initialization
   metadata.rpId = rpId;
   metadata.userId = userId;
@@ -219,10 +256,14 @@ export async function updateCurrentUserDetails(rpId, userId, name, displayName) 
       userId,
       name,
       displayName,
-    }).then(() => {
-      console.info('User info attached to passkeys have been signaled to the password manager.');
-    }).catch(e => {
-      console.error(e.message);
-    });
+    })
+      .then(() => {
+        console.info(
+          "User info attached to passkeys have been signaled to the password manager."
+        );
+      })
+      .catch((e) => {
+        console.error(e.message);
+      });
   }
 }

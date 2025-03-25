@@ -41,7 +41,7 @@ const config = {
   domain,
   origin,
   secret: secret || 'set your own secret in the config file',
-  rp_name: rp_name || 'Passkeys Demo',
+  rp_name: rp_name || 'AA Backend',
   project_name: project_name || 'passkeys-demo',
   associated_domains: [
     origin,
