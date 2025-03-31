@@ -82,12 +82,19 @@ const metadata = {
  */
 export async function registerCredential() {
   // Fetch passkey creation options from the server.
-  const _options = await post("http://localhost:8888/auth/registrationRequest");
+  const _options = await post(
+    "http://localhost:8888/auth/registrationRequest",
+    {
+      username: "test user",
+    }
+  );
 
   // const _options = await post("/auth/registerRequest");
 
   // Base64URL decode some values
-  const options = PublicKeyCredential.parseCreationOptionsFromJSON(_options);
+  const options = PublicKeyCredential.parseCreationOptionsFromJSON(
+    _options.challenge
+  );
 
   console.log(options);
 
@@ -106,10 +113,13 @@ export async function registerCredential() {
 
   // Send the result to the server and return the promise.
   try {
-    console.log(credential);
     const result = await post(
       "http://localhost:8888/auth/registrationResponse",
-      credential
+      {
+        user_id: _options.user_id,
+        timezone: "1",
+        credential: credential,
+      }
     );
 
     // const result = await post("/auth/registerResponse", credential);
